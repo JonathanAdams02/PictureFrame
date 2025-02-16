@@ -1,32 +1,39 @@
 import { db } from './firebase-config.js';
-import { collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
+import { 
+    collection, 
+    onSnapshot, 
+    query, 
+    orderBy 
+} from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 
 let currentIndex = 0;
+let photos = [];
 const photoElement = document.getElementById('current-photo');
 
 // Listen for photos in real-time
-const q = query(collection(db, "photos"), orderBy("displayOrder"));
+const q = query(collection(db, "photos"), orderBy("displayOrder", "desc"));
 onSnapshot(q, (snapshot) => {
-    const photos = [];
+    photos = [];
     snapshot.forEach((doc) => {
         photos.push(doc.data().imageData);
     });
     
-    if (photos.length > 0) {
-        photoElement.src = photos[currentIndex];
-        currentIndex = (currentIndex + 1) % photos.length;
+    if (photos.length > 0 && !photoElement.src) {
+        showCurrentPhoto();
     }
 });
 
-// Rotate every 5 seconds
-setInterval(() => {
-    const photos = document.querySelectorAll('#photoGrid img');
+function showCurrentPhoto() {
     if (photos.length > 0) {
         photoElement.classList.add('fade-out');
+        
         setTimeout(() => {
-            currentIndex = (currentIndex + 1) % photos.length;
-            photoElement.src = photos[currentIndex].src;
+            photoElement.src = photos[currentIndex];
             photoElement.classList.remove('fade-out');
+            currentIndex = (currentIndex + 1) % photos.length;
         }, 1000);
     }
-}, 5000);
+}
+
+// Rotate every 5 seconds
+setInterval(showCurrentPhoto, 5000);
