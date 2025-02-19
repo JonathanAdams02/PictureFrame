@@ -5,7 +5,7 @@ console.log("Upload.js is loaded");
 
 // ✅ Register Service Worker (Add this at the start of the file)
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js')
+    navigator.serviceWorker.register('/PictureFrame/service-worker.js')
         .then(() => console.log("Service Worker registered successfully."))
         .catch(error => console.log("Service Worker registration failed:", error));
 }
