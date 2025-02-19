@@ -1,8 +1,6 @@
 import { db } from './firebase-config.js';
 import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 
-console.log("Upload.js is loaded");
-
 // ✅ Register Service Worker (Add this at the start of the file)
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/PictureFrame/service-worker.js')
@@ -17,14 +15,24 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
     input.type = 'file';
     input.accept = 'image/*';
     
-    input.onchange = function(e) {
+    input.onchange = async function(e) {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    const imageData = e.target.result;
-                    
+            // Image Compression
+            try {
+                const options = {
+                    maxWidthOrHeight: 800, // Adjust size as needed
+                    useWebWorker: true // Option to use web workers for performance
+                };
+
+                // Compress the image
+                const compressedFile = await imageCompression(file, options);
+
+                // Convert the compressed image to Data URL
+                const reader = new FileReader();
+                reader.onload = async function(readerEvent) {
+                    const imageData = readerEvent.target.result;
+
                     // ✅ Optionally store in cache for offline access
                     if ('caches' in window) {
                         caches.open('photo-cache').then(cache => {
@@ -40,14 +48,14 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
                     });
 
                     console.log("Photo uploaded!");
-                } catch (error) {
-                    console.error("Error adding photo: ", error);
-                }
-            };
-            reader.readAsDataURL(file);
+                };
+                reader.readAsDataURL(compressedFile);
+            } catch (error) {
+                console.error("Error compressing or uploading the image: ", error);
+            }
         }
     };
-    
+
     input.click();
 });
 
