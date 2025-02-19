@@ -1,6 +1,6 @@
-// Import the functions you need from the SDKs you need
+// Import the necessary Firebase functions
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
+import { getFirestore, initializeFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -15,6 +15,23 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Initialize Firestore
 const db = getFirestore(app);
+
+// Enable offline persistence for Firestore
+initializeFirestore(app, {
+    experimentalForceLongPolling: true // This can help with reliability in some network conditions
+});
+
+// Enable offline persistence
+enableIndexedDbPersistence(db)
+    .catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.error("Persistence failed: Multiple tabs open");
+        } else if (err.code == 'unimplemented') {
+            console.error("Persistence is not supported by this browser");
+        }
+    });
 
 export { db };
