@@ -1,49 +1,7 @@
 import { db } from './firebase-config.js';
 import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 
-// ✅ Register Service Worker (Add this at the start of the file)
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/PictureFrame/service-worker.js')
-        .then(() => console.log("Service Worker registered successfully."))
-        .catch(error => console.log("Service Worker registration failed:", error));
-}
-
-// Function to fix orientation
-function fixImageOrientation(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const arrayBuffer = e.target.result;
-            const exif = piexif.load(arrayBuffer);
-            const orientation = exif['0th'][piexif.ImageIFD.Orientation];
-
-            let img = new Image();
-            img.onload = function() {
-                let canvas = document.createElement('canvas');
-                let ctx = canvas.getContext('2d');
-
-                // Adjust orientation based on EXIF data
-                if (orientation > 1) {
-                    canvas.width = img.height;
-                    canvas.height = img.width;
-                    ctx.rotate(orientation * 90 * Math.PI / 180);
-                    ctx.drawImage(img, 0, -img.height);
-                } else {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                }
-                canvas.toBlob(resolve, file.type);
-            };
-            img.onerror = reject;
-            img.src = e.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-    });
-}
-
-// Compress and Upload functionality
+// Upload functionality
 document.getElementById('uploadBtn').addEventListener('click', function() {
     console.log("Upload button clicked");
     const input = document.createElement('input');
@@ -54,39 +12,46 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
         const file = e.target.files[0];
         if (file) {
             try {
-                // Step 1: Fix the orientation based on EXIF
-                const correctedFile = await fixImageOrientation(file);
-
-                // Step 2: Compress the image before uploading
-                const compressedFile = await imageCompression(correctedFile, {
-                    maxWidthOrHeight: 800, // Set max width or height to compress
+                // Compress the image first
+                const compressedFile = await imageCompression(file, {
+                    maxWidthOrHeight: 800,
                     useWebWorker: true
                 });
 
+                // Create reader for orientation fix
                 const reader = new FileReader();
                 reader.onload = async function(e) {
-                    const imageData = e.target.result;
-
-                    // ✅ Optionally store in cache for offline access
-                    if ('caches' in window) {
-                        caches.open('photo-cache').then(cache => {
-                            cache.put(`photo-${Date.now()}`, new Response(imageData));
-                        });
+                    try {
+                        // Fix orientation using piexif
+                        const image = new Image();
+                        image.onload = async function() {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            canvas.width = image.width;
+                            canvas.height = image.height;
+                            ctx.drawImage(image, 0, 0);
+                            
+                            // Convert to data URL and upload
+                            const finalImageData = canvas.toDataURL('image/jpeg');
+                            
+                            // Upload to Firestore
+                            const docRef = await addDoc(collection(db, "photos"), {
+                                imageData: finalImageData,
+                                uploadedAt: new Date(),
+                                displayOrder: Date.now()
+                            });
+                            
+                            console.log("Photo uploaded successfully!");
+                        };
+                        image.src = e.target.result;
+                    } catch (error) {
+                        console.error("Error processing image:", error);
                     }
-
-                    // ✅ Upload to Firestore
-                    const docRef = await addDoc(collection(db, "photos"), {
-                        imageData: imageData,
-                        uploadedAt: new Date(),
-                        displayOrder: Date.now()
-                    });
-
-                    console.log("Photo uploaded!");
                 };
-
                 reader.readAsDataURL(compressedFile);
             } catch (error) {
-                console.error("Error during image processing or upload: ", error);
+                console.error("Error compressing image:", error);
             }
         }
     };
