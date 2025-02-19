@@ -8,6 +8,41 @@ if ('serviceWorker' in navigator) {
         .catch(error => console.log("Service Worker registration failed:", error));
 }
 
+// Function to fix orientation
+function fixImageOrientation(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const arrayBuffer = e.target.result;
+            const exif = piexif.load(arrayBuffer);
+            const orientation = exif['0th'][piexif.ImageIFD.Orientation];
+
+            let img = new Image();
+            img.onload = function() {
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
+
+                // Adjust orientation based on EXIF data
+                if (orientation > 1) {
+                    canvas.width = img.height;
+                    canvas.height = img.width;
+                    ctx.rotate(orientation * 90 * Math.PI / 180);
+                    ctx.drawImage(img, 0, -img.height);
+                } else {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                }
+                canvas.toBlob(resolve, file.type);
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
+
 // Compress and Upload functionality
 document.getElementById('uploadBtn').addEventListener('click', function() {
     console.log("Upload button clicked");
@@ -19,8 +54,11 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
         const file = e.target.files[0];
         if (file) {
             try {
-                // Compress the image before uploading
-                const compressedFile = await imageCompression(file, {
+                // Step 1: Fix the orientation based on EXIF
+                const correctedFile = await fixImageOrientation(file);
+
+                // Step 2: Compress the image before uploading
+                const compressedFile = await imageCompression(correctedFile, {
                     maxWidthOrHeight: 800, // Set max width or height to compress
                     useWebWorker: true
                 });
@@ -48,7 +86,7 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
 
                 reader.readAsDataURL(compressedFile);
             } catch (error) {
-                console.error("Error during image compression or upload: ", error);
+                console.error("Error during image processing or upload: ", error);
             }
         }
     };
