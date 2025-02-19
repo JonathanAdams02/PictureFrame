@@ -1,5 +1,8 @@
 import { db } from './firebase-config.js';
 import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
+import piexif from 'https://cdn.jsdelivr.net/npm/piexifjs@1.0.3/dist/piexif.min.js';
+
+console.log("Upload.js is loaded");
 
 // ✅ Register Service Worker (Add this at the start of the file)
 if ('serviceWorker' in navigator) {
@@ -14,114 +17,88 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    
-    input.onchange = async function(e) {
+
+    input.onchange = function(e) {
         const file = e.target.files[0];
         if (file) {
-            try {
-                // Read the file as a Data URL
-                const reader = new FileReader();
-                reader.onload = async function(readerEvent) {
-                    const imageData = readerEvent.target.result;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    let imageData = e.target.result;
 
-                    // Check and correct orientation using piexifjs
-                    const correctedImageData = await correctImageOrientation(imageData);
+                    // ✅ Correct image orientation based on EXIF data
+                    const correctedImage = await correctOrientation(imageData);
 
-                    // Compress the image
-                    const options = {
-                    maxWidthOrHeight: 800, // Adjust size as needed
-                    useWebWorker: true // Option to use web workers for performance
-                    };
-
-                    const compressedFile = await imageCompression(correctedImageData, options);
-
-                    // Convert the compressed file to a Data URL
-                    const compressedReader = new FileReader();
-                    compressedReader.onload = async function(compressedReaderEvent) {
-                        const compressedImageData = compressedReaderEvent.target.result;
-
-                        // ✅ Optionally store in cache for offline access
-                        if ('caches' in window) {
-                            caches.open('photo-cache').then(cache => {
-                                cache.put(`photo-${Date.now()}`, new Response(compressedImageData));
-                            });
-                        }
-
-                        // ✅ Upload to Firestore
-                        const docRef = await addDoc(collection(db, "photos"), {
-                            imageData: compressedImageData,
-                            uploadedAt: new Date(),
-                            displayOrder: Date.now()
+                    // ✅ Optionally store in cache for offline access
+                    if ('caches' in window) {
+                        caches.open('photo-cache').then(cache => {
+                            cache.put(`photo-${Date.now()}`, new Response(correctedImage));
                         });
+                    }
 
-                        console.log("Photo uploaded!");
-                    };
-                    compressedReader.readAsDataURL(compressedFile);
-                };
-                reader.readAsDataURL(file);
-            } catch (error) {
-                console.error("Error correcting or uploading the image: ", error);
-            }
+                    // ✅ Upload to Firestore
+                    const docRef = await addDoc(collection(db, "photos"), {
+                        imageData: correctedImage,
+                        uploadedAt: new Date(),
+                        displayOrder: Date.now()
+                    });
+
+                    console.log("Photo uploaded!");
+                } catch (error) {
+                    console.error("Error adding photo: ", error);
+                }
+            };
+            reader.readAsDataURL(file);
         }
     };
 
     input.click();
 });
 
-// Function to correct the orientation using EXIF data
-async function correctImageOrientation(imageData) {
+// Function to correct orientation based on EXIF
+async function correctOrientation(imageData) {
+    const image = new Image();
+    image.src = imageData;
+    
     return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = function() {
-            // Get EXIF data and correct the orientation if necessary
+        image.onload = function() {
+            let canvas = document.createElement('canvas');
+            let ctx = canvas.getContext('2d');
             const exifData = piexif.load(imageData);
-            const orientation = exifData["0th"][piexif.ImageIFD.Orientation];
+            const orientation = exifData['0th'][piexif.OFFSETs.Orientation];
 
-            if (orientation && orientation !== 1) {
-                // Correct orientation using canvas
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
+            // Set canvas dimensions based on the image size
+            canvas.width = image.width;
+            canvas.height = image.height;
 
-                // Set canvas size
-                canvas.width = img.width;
-                canvas.height = img.height;
-
-                // Rotate image according to EXIF orientation
-                switch (orientation) {
-                    case 6:
-                        canvas.width = img.height;
-                        canvas.height = img.width;
-                        ctx.rotate(90 * Math.PI / 180);
-                        ctx.drawImage(img, 0, -img.height);
-                        break;
-                    case 3:
-                        ctx.rotate(180 * Math.PI / 180);
-                        ctx.drawImage(img, -img.width, -img.height);
-                        break;
-                    case 8:
-                        canvas.width = img.height;
-                        canvas.height = img.width;
-                        ctx.rotate(-90 * Math.PI / 180);
-                        ctx.drawImage(img, -img.width, 0);
-                        break;
-                    default:
-                        ctx.drawImage(img, 0, 0);
-                        break;
-                }
-
-                // Return the corrected image as Data URL
-                const correctedImageData = canvas.toDataURL();
-                resolve(correctedImageData);
-            } else {
-                resolve(imageData); // No correction needed
+            // Correct orientation based on EXIF data
+            switch (orientation) {
+                case 3:
+                    ctx.rotate(180 * Math.PI / 180);
+                    ctx.drawImage(image, -image.width, -image.height);
+                    break;
+                case 6:
+                    canvas.width = image.height;
+                    canvas.height = image.width;
+                    ctx.rotate(90 * Math.PI / 180);
+                    ctx.drawImage(image, 0, -image.height);
+                    break;
+                case 8:
+                    canvas.width = image.height;
+                    canvas.height = image.width;
+                    ctx.rotate(-90 * Math.PI / 180);
+                    ctx.drawImage(image, -image.width, 0);
+                    break;
+                default:
+                    ctx.drawImage(image, 0, 0);
             }
-        };
 
-        img.onerror = function() {
-            reject(new Error("Failed to load image for orientation correction"));
+            // Return corrected image as base64
+            resolve(canvas.toDataURL('image/jpeg'));
         };
-
-        img.src = imageData;
+        image.onerror = function() {
+            reject("Error loading image for orientation correction.");
+        };
     });
 }
 
@@ -130,26 +107,26 @@ const photosQuery = query(collection(db, "photos"), orderBy("displayOrder", "des
 onSnapshot(photosQuery, (snapshot) => {
     const photoGrid = document.getElementById('photoGrid');
     photoGrid.innerHTML = ''; // Clear existing photos
-    
+
     snapshot.forEach((docSnapshot) => {
         const photoData = docSnapshot.data();
-        
+
         // Create container for photo and delete button
         const container = document.createElement('div');
         container.className = 'photo-container';
-        
+
         // Create image
         const img = document.createElement('img');
         img.src = photoData.imageData;
         img.style.width = '100%';
         img.style.height = '150px';
         img.style.objectFit = 'cover';
-        
+
         // Create delete button
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'Delete';
         deleteButton.className = 'delete-btn';
-        
+
         // Add delete functionality
         deleteButton.addEventListener('click', async () => {
             try {
@@ -159,7 +136,7 @@ onSnapshot(photosQuery, (snapshot) => {
                 console.error("Error deleting: ", error);
             }
         });
-        
+
         // Add everything to container
         container.appendChild(img);
         container.appendChild(deleteButton);
