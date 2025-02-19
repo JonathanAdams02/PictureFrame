@@ -18,46 +18,112 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
     input.onchange = async function(e) {
         const file = e.target.files[0];
         if (file) {
-            // Image Compression
             try {
-                const options = {
-                    maxWidthOrHeight: 800, // Adjust size as needed
-                    useWebWorker: true // Option to use web workers for performance
-                };
-
-                // Compress the image
-                const compressedFile = await imageCompression(file, options);
-
-                // Convert the compressed image to Data URL
+                // Read the file as a Data URL
                 const reader = new FileReader();
                 reader.onload = async function(readerEvent) {
                     const imageData = readerEvent.target.result;
 
-                    // ✅ Optionally store in cache for offline access
-                    if ('caches' in window) {
-                        caches.open('photo-cache').then(cache => {
-                            cache.put(`photo-${Date.now()}`, new Response(imageData));
+                    // Check and correct orientation using piexifjs
+                    const correctedImageData = await correctImageOrientation(imageData);
+
+                    // Compress the image
+                    const options = {
+                    maxWidthOrHeight: 800, // Adjust size as needed
+                    useWebWorker: true // Option to use web workers for performance
+                    };
+
+                    const compressedFile = await imageCompression(correctedImageData, options);
+
+                    // Convert the compressed file to a Data URL
+                    const compressedReader = new FileReader();
+                    compressedReader.onload = async function(compressedReaderEvent) {
+                        const compressedImageData = compressedReaderEvent.target.result;
+
+                        // ✅ Optionally store in cache for offline access
+                        if ('caches' in window) {
+                            caches.open('photo-cache').then(cache => {
+                                cache.put(`photo-${Date.now()}`, new Response(compressedImageData));
+                            });
+                        }
+
+                        // ✅ Upload to Firestore
+                        const docRef = await addDoc(collection(db, "photos"), {
+                            imageData: compressedImageData,
+                            uploadedAt: new Date(),
+                            displayOrder: Date.now()
                         });
-                    }
 
-                    // ✅ Upload to Firestore
-                    const docRef = await addDoc(collection(db, "photos"), {
-                        imageData: imageData,
-                        uploadedAt: new Date(),
-                        displayOrder: Date.now()
-                    });
-
-                    console.log("Photo uploaded!");
+                        console.log("Photo uploaded!");
+                    };
+                    compressedReader.readAsDataURL(compressedFile);
                 };
-                reader.readAsDataURL(compressedFile);
+                reader.readAsDataURL(file);
             } catch (error) {
-                console.error("Error compressing or uploading the image: ", error);
+                console.error("Error correcting or uploading the image: ", error);
             }
         }
     };
 
     input.click();
 });
+
+// Function to correct the orientation using EXIF data
+async function correctImageOrientation(imageData) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = function() {
+            // Get EXIF data and correct the orientation if necessary
+            const exifData = piexif.load(imageData);
+            const orientation = exifData["0th"][piexif.ImageIFD.Orientation];
+
+            if (orientation && orientation !== 1) {
+                // Correct orientation using canvas
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Set canvas size
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                // Rotate image according to EXIF orientation
+                switch (orientation) {
+                    case 6:
+                        canvas.width = img.height;
+                        canvas.height = img.width;
+                        ctx.rotate(90 * Math.PI / 180);
+                        ctx.drawImage(img, 0, -img.height);
+                        break;
+                    case 3:
+                        ctx.rotate(180 * Math.PI / 180);
+                        ctx.drawImage(img, -img.width, -img.height);
+                        break;
+                    case 8:
+                        canvas.width = img.height;
+                        canvas.height = img.width;
+                        ctx.rotate(-90 * Math.PI / 180);
+                        ctx.drawImage(img, -img.width, 0);
+                        break;
+                    default:
+                        ctx.drawImage(img, 0, 0);
+                        break;
+                }
+
+                // Return the corrected image as Data URL
+                const correctedImageData = canvas.toDataURL();
+                resolve(correctedImageData);
+            } else {
+                resolve(imageData); // No correction needed
+            }
+        };
+
+        img.onerror = function() {
+            reject(new Error("Failed to load image for orientation correction"));
+        };
+
+        img.src = imageData;
+    });
+}
 
 // Load and show existing photos
 const photosQuery = query(collection(db, "photos"), orderBy("displayOrder", "desc"));
