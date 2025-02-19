@@ -106,10 +106,51 @@ onSnapshot(photosQuery, (snapshot) => {
                 console.error("Error deleting: ", error);
             }
         });
-        
+                // Create rotate button
+                const rotateButton = document.createElement('button');
+                rotateButton.textContent = '🔄';
+                rotateButton.className = 'rotate-btn';
+                
+                // Add rotate functionality
+                rotateButton.addEventListener('click', async () => {
+                    try {
+                        const image = new Image();
+                        image.onload = async function() {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            // Swap width and height
+                            canvas.width = image.height;
+                            canvas.height = image.width;
+                            
+                            // Translate and rotate
+                            ctx.translate(canvas.width/2, canvas.height/2);
+                            ctx.rotate(90 * Math.PI/180);
+                            ctx.translate(-canvas.height/2, -canvas.width/2);
+                            
+                            ctx.drawImage(image, 0, 0);
+                            
+                            const rotatedImageData = canvas.toDataURL('image/jpeg');
+                            
+                            // Update in Firestore
+                            await addDoc(collection(db, "photos"), {
+                                imageData: rotatedImageData,
+                                uploadedAt: new Date(),
+                                displayOrder: Date.now()
+                            });
+                            
+                            // Delete old version
+                            await deleteDoc(doc(db, "photos", docSnapshot.id));
+                        };
+                        image.src = photoData.imageData;
+                    } catch (error) {
+                        console.error("Error rotating photo:", error);
+                    }
+                });
         // Add everything to container
         container.appendChild(img);
         container.appendChild(deleteButton);
         photoGrid.appendChild(container);
+        container.appendChild(rotateButton); 
     });
 });

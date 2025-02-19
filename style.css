@@ -86,3 +86,19 @@ button:hover {
         padding: 10px;
     }
 }
+.rotate-btn {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+.rotate-btn:hover {
+    opacity: 1;
+}
