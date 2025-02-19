@@ -1,7 +1,7 @@
 {
     "name": "Family Photo Frame",
     "short_name": "Photos",
-    "start_url": "/index.html",
+    "start_url": "/PictureFrame/Index.html",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#4CAF50",
