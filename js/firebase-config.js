@@ -4,7 +4,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/11.3.1/firebase
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyBHBIi2x9aoZRvYn17eLTSBdAuzHM2DeAM",
+    apiKey: "AIzaSyChPtB_6ulU6Tmm0GXC8gCoKiMSaji7kjk",
     authDomain: "pictureframe-e780d.firebaseapp.com",
     projectId: "pictureframe-e780d",
     storageBucket: "pictureframe-e780d.firebasestorage.app",
