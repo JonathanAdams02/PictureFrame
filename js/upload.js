@@ -28,9 +28,22 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
                             const canvas = document.createElement('canvas');
                             const ctx = canvas.getContext('2d');
                             
-                            canvas.width = image.width;
-                            canvas.height = image.height;
+                            // Get the proper orientation
+                            ctx.save();
+                            if (image.width > image.height) {
+                                // Only modify if image is landscape and needs rotating
+                                canvas.width = image.height;
+                                canvas.height = image.width;
+                                ctx.translate(canvas.width/2, canvas.height/2);
+                                ctx.rotate(90 * Math.PI/180);
+                                ctx.translate(-canvas.height/2, -canvas.width/2);
+                            } else {
+                                canvas.width = image.width;
+                                canvas.height = image.height;
+                            }
+                            
                             ctx.drawImage(image, 0, 0);
+                            ctx.restore();
                             
                             // Convert to data URL and upload
                             const finalImageData = canvas.toDataURL('image/jpeg');
