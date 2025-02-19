@@ -3,6 +3,13 @@ import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "
 
 console.log("Upload.js is loaded");
 
+// ✅ Register Service Worker (Add this at the start of the file)
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log("Service Worker registered successfully."))
+        .catch(error => console.log("Service Worker registration failed:", error));
+}
+
 // Upload functionality
 document.getElementById('uploadBtn').addEventListener('click', function() {
     console.log("Upload button clicked");
@@ -16,11 +23,23 @@ document.getElementById('uploadBtn').addEventListener('click', function() {
             const reader = new FileReader();
             reader.onload = async function(e) {
                 try {
+                    const imageData = e.target.result;
+                    
+                    // ✅ Optionally store in cache for offline access
+                    if ('caches' in window) {
+                        caches.open('photo-cache').then(cache => {
+                            cache.put(`photo-${Date.now()}`, new Response(imageData));
+                        });
+                    }
+
+                    // ✅ Upload to Firestore
                     const docRef = await addDoc(collection(db, "photos"), {
-                        imageData: e.target.result,
+                        imageData: imageData,
                         uploadedAt: new Date(),
                         displayOrder: Date.now()
                     });
+
+                    console.log("Photo uploaded!");
                 } catch (error) {
                     console.error("Error adding photo: ", error);
                 }
