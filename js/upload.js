@@ -1,4 +1,4 @@
-import { db, auth } from './firebase-config.js';
+import { db, auth } from '../firebase-config.js';
 import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 import './auth.js';
 

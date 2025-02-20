@@ -1,4 +1,4 @@
-import { db, auth } from './firebase-config.js';
+import { db, auth } from '../firebase-config.js';
 import { 
     signInWithEmailAndPassword,
     onAuthStateChanged,
@@ -26,23 +26,30 @@ async function registerDevice(userId, deviceName) {
     const deviceId = getDeviceId();
     const devicesRef = collection(db, "devices");
     
-    // Check if device is already registered
-    const q = query(devicesRef, where("deviceId", "==", deviceId));
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-        // Register new device
-        await addDoc(devicesRef, {
-            deviceId: deviceId,
-            userId: userId,
-            deviceName: deviceName,
-            registeredAt: new Date(),
-            lastUsed: new Date()
-        });
+    try {
+        // Check if device is already registered
+        const q = query(devicesRef, where("deviceId", "==", deviceId));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            // Register new device
+            await addDoc(devicesRef, {
+                deviceId: deviceId,
+                userId: userId,
+                deviceName: deviceName,
+                registeredAt: new Date(),
+                lastUsed: new Date()
+            });
+        }
+        
+        localStorage.setItem('isRegistered', 'true');
+        localStorage.setItem('deviceName', deviceName);
+        
+        return true;
+    } catch (error) {
+        console.error('Error registering device:', error);
+        return false;
     }
-    
-    localStorage.setItem('isRegistered', 'true');
-    localStorage.setItem('deviceName', deviceName);
 }
 
 // Get HTML elements
@@ -52,7 +59,7 @@ const errorMessage = document.getElementById('errorMessage');
 const userInfo = document.getElementById('userInfo');
 const unregisterButton = document.getElementById('unregisterButton');
 
-// Show/hide login form based on registration status
+// Show login form if not registered
 if (!localStorage.getItem('isRegistered')) {
     loginContainer.classList.remove('hidden');
 } else {
@@ -62,18 +69,34 @@ if (!localStorage.getItem('isRegistered')) {
 // Handle login form submission
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+        e.preventDefault(); // Prevent form from submitting normally
+        
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const deviceName = document.getElementById('deviceName').value;
         
         try {
+            // First try to sign in
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            await registerDevice(userCredential.user.uid, deviceName);
-            loginContainer.classList.add('hidden');
+            
+            // Then register the device
+            const registered = await registerDevice(userCredential.user.uid, deviceName);
+            
+            if (registered) {
+                loginContainer.classList.add('hidden');
+                if (userInfo) {
+                    userInfo.textContent = `Device: ${deviceName}`;
+                    userInfo.classList.remove('hidden');
+                }
+                if (unregisterButton) {
+                    unregisterButton.classList.remove('hidden');
+                }
+            } else {
+                throw new Error('Failed to register device');
+            }
         } catch (error) {
-            errorMessage.textContent = 'Login failed. Please check your email and password.';
             console.error('Login error:', error);
+            errorMessage.textContent = 'Login failed. Please check your email and password.';
         }
     });
 }
@@ -81,7 +104,7 @@ if (loginForm) {
 // Handle unregister button
 if (unregisterButton) {
     unregisterButton.addEventListener('click', async () => {
-        if (confirm('Are you sure you want to unregister this device? You will need to register again to view photos.')) {
+        if (confirm('Are you sure you want to unregister this device? You will need to register again to upload photos.')) {
             try {
                 await signOut(auth);
                 localStorage.removeItem('isRegistered');
@@ -99,19 +122,21 @@ if (unregisterButton) {
 onAuthStateChanged(auth, (user) => {
     if (user && localStorage.getItem('isRegistered')) {
         // User is signed in and device is registered
-        loginContainer.classList.add('hidden');
-        unregisterButton.classList.remove('hidden');
+        if (loginContainer) loginContainer.classList.add('hidden');
+        if (unregisterButton) unregisterButton.classList.remove('hidden');
         
         // Show device info
-        const deviceName = localStorage.getItem('deviceName');
-        userInfo.textContent = `Device: ${deviceName}`;
-        userInfo.classList.remove('hidden');
+        if (userInfo) {
+            const deviceName = localStorage.getItem('deviceName');
+            userInfo.textContent = `Device: ${deviceName}`;
+            userInfo.classList.remove('hidden');
+        }
     } else {
         // User is signed out or device not registered
         if (!localStorage.getItem('isRegistered')) {
-            loginContainer.classList.remove('hidden');
+            if (loginContainer) loginContainer.classList.remove('hidden');
         }
-        unregisterButton.classList.add('hidden');
-        userInfo.classList.add('hidden');
+        if (unregisterButton) unregisterButton.classList.add('hidden');
+        if (userInfo) userInfo.classList.add('hidden');
     }
 });
