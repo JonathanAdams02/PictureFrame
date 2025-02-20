@@ -1,6 +1,7 @@
 // Import the necessary Firebase functions
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
 import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
+import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -19,6 +20,17 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore and enable offline persistence
 const db = getFirestore(app);
 
+// Initialize Authentication
+const auth = getAuth(app);
+
+// Set authentication persistence to LOCAL
+// This keeps the user logged in until they explicitly log out
+setPersistence(auth, browserLocalPersistence)
+    .catch((error) => {
+        console.error("Error setting auth persistence:", error);
+    });
+
+// Enable Firestore offline persistence
 enableIndexedDbPersistence(db)
     .catch((err) => {
         if (err.code === 'failed-precondition') {
@@ -28,4 +40,4 @@ enableIndexedDbPersistence(db)
         }
     });
 
-export { db };
+export { db, auth };
