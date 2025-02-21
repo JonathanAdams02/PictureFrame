@@ -122,7 +122,14 @@ if (unregisterButton) {
 onAuthStateChanged(auth, (user) => {
     if (user && localStorage.getItem('isRegistered')) {
         // User is signed in and device is registered
-        if (loginContainer) loginContainer.classList.add('hidden');
+        // Hide the login modal or container
+        if (loginContainer) {
+            loginContainer.classList.add('hidden'); // Hides the login container
+            // OR (directly set display to none)
+            loginContainer.style.display = 'none'; // Make sure modal is hidden
+        }
+
+        // Show unregister button
         if (unregisterButton) unregisterButton.classList.remove('hidden');
         
         // Show device info
