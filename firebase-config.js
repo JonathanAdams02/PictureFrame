@@ -1,9 +1,7 @@
-// Import the necessary Firebase functions
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
 import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
-import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
+import { getAuth, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyChPtB_6ulU6Tmm0GXC8gCoKiMSaji7kjk",
     authDomain: "pictureframe-e780d.firebaseapp.com",
@@ -14,23 +12,11 @@ const firebaseConfig = {
     measurementId: "G-PJSE4T68DZ"
 };
 
-// Initialize Firebase only once
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore and enable offline persistence
+// Initialize Firestore with persistence
 const db = getFirestore(app);
-
-// Initialize Authentication
-const auth = getAuth(app);
-
-// Set authentication persistence to LOCAL
-// This keeps the user logged in until they explicitly log out
-setPersistence(auth, browserLocalPersistence)
-    .catch((error) => {
-        console.error("Error setting auth persistence:", error);
-    });
-
-// Enable Firestore offline persistence
 enableIndexedDbPersistence(db)
     .catch((err) => {
         if (err.code === 'failed-precondition') {
@@ -39,5 +25,15 @@ enableIndexedDbPersistence(db)
             console.error("Persistence is not supported by this browser");
         }
     });
+
+// Initialize Auth with explicit settings
+const auth = getAuth(app);
+auth.settings = {
+    appVerificationDisabledForTesting: true  // This might help with the domain verification
+};
+
+// Log the current auth domain
+console.log('Current auth domain:', auth.config.authDomain);
+console.log('Current window location:', window.location.hostname);
 
 export { db, auth };
