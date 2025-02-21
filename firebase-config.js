@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
 import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
-import { getAuth, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyChPtB_6ulU6Tmm0GXC8gCoKiMSaji7kjk",
@@ -15,6 +15,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
+// Initialize Auth before Firestore
+const auth = getAuth(app);
+
 // Initialize Firestore with persistence
 const db = getFirestore(app);
 enableIndexedDbPersistence(db)
@@ -26,14 +29,7 @@ enableIndexedDbPersistence(db)
         }
     });
 
-// Initialize Auth with explicit settings
-const auth = getAuth(app);
-auth.settings = {
-    appVerificationDisabledForTesting: true  // This might help with the domain verification
-};
-
-// Log the current auth domain
-console.log('Current auth domain:', auth.config.authDomain);
-console.log('Current window location:', window.location.hostname);
+// Debug logging
+console.log('Current auth domain:', window.location.hostname);
 
 export { db, auth };
