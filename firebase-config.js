@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
 import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
+import { getAuth, setPersistence, indexedDBLocalPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAbVkwkTC5rO8_IJWy7ys7_Dil7oWU7ew0",
@@ -17,6 +17,17 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Auth before Firestore
 const auth = getAuth(app);
+
+// Set persistence to INDEXED_DB for maximum persistence
+setPersistence(auth, indexedDBLocalPersistence)
+    .then(() => {
+        console.log("Using indexedDB persistence for maximum session length");
+    })
+    .catch((error) => {
+        console.error("Error setting persistence:", error);
+        // Fall back to localStorage
+        return setPersistence(auth, browserLocalPersistence);
+    });
 
 // Initialize Firestore with persistence
 const db = getFirestore(app);

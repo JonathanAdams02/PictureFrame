@@ -4,7 +4,7 @@ import {
     onAuthStateChanged,
     signOut 
 } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
-import { collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
+import { collection, addDoc, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 
 // Function to generate a unique device ID
 function generateDeviceId() {
@@ -40,6 +40,12 @@ async function registerDevice(userId, deviceName) {
                 registeredAt: new Date(),
                 lastUsed: new Date()
             });
+        } else {
+            // Update last used timestamp
+            const docRef = doc(db, "devices", querySnapshot.docs[0].id);
+            await updateDoc(docRef, {
+                lastUsed: new Date()
+            });
         }
         
         localStorage.setItem('isRegistered', 'true');
@@ -61,9 +67,9 @@ const unregisterButton = document.getElementById('unregisterButton');
 
 // Show login form if not registered
 if (!localStorage.getItem('isRegistered')) {
-    loginContainer.classList.remove('hidden');
+    if (loginContainer) loginContainer.classList.remove('hidden');
 } else {
-    loginContainer.classList.add('hidden');
+    if (loginContainer) loginContainer.classList.add('hidden');
 }
 
 // Handle login form submission
@@ -83,7 +89,7 @@ if (loginForm) {
             const registered = await registerDevice(userCredential.user.uid, deviceName);
             
             if (registered) {
-                loginContainer.classList.add('hidden');
+                if (loginContainer) loginContainer.classList.add('hidden');
                 if (userInfo) {
                     userInfo.textContent = `Device: ${deviceName}`;
                     userInfo.classList.remove('hidden');
@@ -96,7 +102,7 @@ if (loginForm) {
             }
         } catch (error) {
             console.error('Login error:', error);
-            errorMessage.textContent = 'Login failed. Please check your email and password.';
+            if (errorMessage) errorMessage.textContent = 'Login failed. Please check your email and password.';
         }
     });
 }
@@ -120,12 +126,13 @@ if (unregisterButton) {
 
 // Monitor authentication state
 onAuthStateChanged(auth, (user) => {
+    console.log('Auth state changed:', user ? 'User is signed in' : 'User is signed out');
+    
     if (user && localStorage.getItem('isRegistered')) {
         // User is signed in and device is registered
         // Hide the login modal or container
         if (loginContainer) {
             loginContainer.classList.add('hidden'); // Hides the login container
-            // OR (directly set display to none)
             loginContainer.style.display = 'none'; // Make sure modal is hidden
         }
 
@@ -138,6 +145,9 @@ onAuthStateChanged(auth, (user) => {
             userInfo.textContent = `Device: ${deviceName}`;
             userInfo.classList.remove('hidden');
         }
+        
+        // Update last used timestamp
+        refreshDeviceTimestamp();
     } else {
         // User is signed out or device not registered
         if (!localStorage.getItem('isRegistered')) {
@@ -147,3 +157,49 @@ onAuthStateChanged(auth, (user) => {
         if (userInfo) userInfo.classList.add('hidden');
     }
 });
+
+// Function to update device last used timestamp
+async function refreshDeviceTimestamp() {
+    const deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) return;
+    
+    try {
+        const deviceRef = collection(db, "devices");
+        const q = query(deviceRef, where("deviceId", "==", deviceId));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+            const docRef = doc(db, "devices", snapshot.docs[0].id);
+            await updateDoc(docRef, {
+                lastUsed: new Date()
+            });
+            console.log("Device timestamp updated");
+        }
+    } catch (err) {
+        console.error("Error updating device timestamp:", err);
+    }
+}
+
+// Enhance session persistence for PWA
+function ensureAuthPersistence() {
+    // Check if stored credentials match current auth state
+    const isRegistered = localStorage.getItem('isRegistered');
+    const deviceId = localStorage.getItem('deviceId');
+    
+    if (isRegistered && deviceId) {
+        console.log("Verifying device registration on startup");
+        
+        // Force auth check on startup
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+            console.log("User already authenticated on startup");
+            refreshDeviceTimestamp();
+        } else {
+            console.log("Waiting for auth state to resolve");
+            // onAuthStateChanged will handle the rest
+        }
+    }
+}
+
+// Call this function when the page loads
+ensureAuthPersistence();
