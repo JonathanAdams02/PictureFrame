@@ -61,28 +61,34 @@
             display: none;
         }
 
+        /* Updated device info styles */
+        .device-info-footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            padding-bottom: 1rem;
+        }
+
         #userInfo {
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
-            background: white;
-            padding: 0.5rem;
+            display: inline-block;
+            background: #f5f5f5;
+            padding: 0.5rem 1rem;
             border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            z-index: 100;
+            margin-right: 1rem;
+            font-size: 14px;
+            color: #555;
         }
 
         #unregisterButton {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
             background: #ff4444;
             color: white;
             border: none;
             padding: 0.5rem 1rem;
             border-radius: 4px;
             cursor: pointer;
-            z-index: 100;
+            font-size: 14px;
+            vertical-align: middle;
         }
 
         #unregisterButton:hover {
@@ -126,12 +132,6 @@
         </form>
     </div>
 
-    <!-- User info display -->
-    <div id="userInfo" class="hidden"></div>
-    
-    <!-- Unregister button -->
-    <button id="unregisterButton" class="hidden">Unregister Device</button>
-
     <!-- Main content -->
     <div class="container">
         <h1>Upload hier je foto's!</h1>
@@ -142,6 +142,12 @@
             <div id="photoGrid" class="photo-grid">
                 <!-- Photos will be displayed here -->
             </div>
+        </div>
+        
+        <!-- Device info footer -->
+        <div class="device-info-footer">
+            <div id="userInfo" class="hidden"></div>
+            <button id="unregisterButton" class="hidden">Unregister Device</button>
         </div>
     </div>
     
