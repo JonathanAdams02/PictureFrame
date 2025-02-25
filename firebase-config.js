@@ -18,16 +18,31 @@ const app = initializeApp(firebaseConfig);
 // Initialize Auth before Firestore
 const auth = getAuth(app);
 
-// Set persistence to INDEXED_DB for maximum persistence
-setPersistence(auth, indexedDBLocalPersistence)
-    .then(() => {
-        console.log("Using indexedDB persistence for maximum session length");
-    })
-    .catch((error) => {
-        console.error("Error setting persistence:", error);
-        // Fall back to localStorage
-        return setPersistence(auth, browserLocalPersistence);
-    });
+// Detect if running as PWA on Safari
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                     navigator.standalone === true;
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
+                /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+console.log("App mode:", isStandalone ? "PWA/Standalone" : "Browser", 
+            isSafari ? "Safari" : "Not Safari");
+
+// Set persistence strategy based on environment
+if (isStandalone && isSafari) {
+    console.log("Using special Safari PWA persistence");
+    // For Safari PWA we'll handle persistence manually in auth.js
+    setPersistence(auth, browserLocalPersistence)
+        .then(() => console.log("Using browserLocalPersistence for Safari PWA"))
+        .catch(error => console.error("Error setting Safari persistence:", error));
+} else {
+    // Use normal persistence for other browsers
+    setPersistence(auth, indexedDBLocalPersistence)
+        .then(() => console.log("Using indexedDB persistence"))
+        .catch((error) => {
+            console.error("Error setting persistence:", error);
+            return setPersistence(auth, browserLocalPersistence);
+        });
+}
 
 // Initialize Firestore with persistence
 const db = getFirestore(app);

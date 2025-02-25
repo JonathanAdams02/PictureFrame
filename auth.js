@@ -116,6 +116,7 @@ if (unregisterButton) {
                 localStorage.removeItem('isRegistered');
                 localStorage.removeItem('deviceId');
                 localStorage.removeItem('deviceName');
+                localStorage.removeItem('_firebaseUser'); // Clear Safari PWA data too
                 location.reload();
             } catch (error) {
                 console.error('Unregister error:', error);
@@ -180,6 +181,82 @@ async function refreshDeviceTimestamp() {
     }
 }
 
+// Safari PWA authentication helper
+function handleSafariPWA() {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                         navigator.standalone === true;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
+                    /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    if (isStandalone && isSafari) {
+        console.log("Safari PWA mode detected");
+        
+        // When user signs in, save credentials in localStorage for Safari PWA
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Store minimal user info in localStorage for Safari PWA
+                console.log("Saving Safari PWA auth state");
+                localStorage.setItem('_firebaseUser', JSON.stringify({
+                    uid: user.uid,
+                    email: user.email
+                }));
+            } else {
+                localStorage.removeItem('_firebaseUser');
+            }
+        });
+        
+        // On Safari PWA startup, check if we have stored credentials
+        const storedUser = localStorage.getItem('_firebaseUser');
+        if (storedUser && localStorage.getItem('isRegistered')) {
+            try {
+                const parsedUser = JSON.parse(storedUser);
+                console.log("Found stored Safari PWA credentials");
+                
+                // Check if device is still valid
+                const deviceId = localStorage.getItem('deviceId');
+                if (deviceId) {
+                    const deviceRef = collection(db, "devices");
+                    const q = query(deviceRef, 
+                        where("deviceId", "==", deviceId)
+                    );
+                    
+                    getDocs(q).then((snapshot) => {
+                        if (!snapshot.empty) {
+                            console.log("Device registration confirmed for Safari PWA");
+                            
+                            // Update timestamp
+                            const docRef = doc(db, "devices", snapshot.docs[0].id);
+                            updateDoc(docRef, {
+                                lastUsed: new Date()
+                            }).catch(err => console.error("Error updating Safari PWA timestamp:", err));
+                            
+                            // Force UI update
+                            if (loginContainer) loginContainer.classList.add('hidden');
+                            if (loginContainer) loginContainer.style.display = 'none';
+                            
+                            if (userInfo) {
+                                const deviceName = localStorage.getItem('deviceName');
+                                userInfo.textContent = `Device: ${deviceName}`;
+                                userInfo.classList.remove('hidden');
+                            }
+                            
+                            if (unregisterButton) unregisterButton.classList.remove('hidden');
+                        } else {
+                            console.warn("Device not found in database, clearing Safari PWA state");
+                            localStorage.removeItem('isRegistered');
+                            localStorage.removeItem('deviceId');
+                            localStorage.removeItem('_firebaseUser');
+                            if (loginContainer) loginContainer.classList.remove('hidden');
+                        }
+                    }).catch(err => console.error("Error checking device:", err));
+                }
+            } catch (error) {
+                console.error("Error processing Safari PWA auth:", error);
+            }
+        }
+    }
+}
+
 // Enhance session persistence for PWA
 function ensureAuthPersistence() {
     // Check if stored credentials match current auth state
@@ -200,6 +277,9 @@ function ensureAuthPersistence() {
         }
     }
 }
+
+// Call Safari handler before persistence check
+handleSafariPWA();
 
 // Call this function when the page loads
 ensureAuthPersistence();
