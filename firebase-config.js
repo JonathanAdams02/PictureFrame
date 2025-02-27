@@ -3,7 +3,7 @@ import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.co
 import { getAuth, setPersistence, indexedDBLocalPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyAbVkwkTC5rO8_IJWy7ys7_Dil7oWU7ew0",
+    apiKey: process.env.FIREBASE_API_KEY,
     authDomain: "pictureframe-e780d.firebaseapp.com",
     projectId: "pictureframe-e780d",
     storageBucket: "pictureframe-e780d.firebasestorage.app",
