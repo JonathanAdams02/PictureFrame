@@ -51,7 +51,7 @@ enableIndexedDbPersistence(db)
         if (err.code === 'failed-precondition') {
             console.error("Persistence failed: Multiple tabs open");
         } else if (err.code === 'unimplemented') {
-            console.error("Persistence is not supported by this browser");
+            console.error("Persistence is not supported by this Browser");
         }
     });
 
